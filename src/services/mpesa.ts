@@ -1,79 +1,120 @@
-import axios from 'axios';
+import { Buffer } from 'buffer';
 
-const MPESA_AUTH_URL = 'https://sandbox.safaricom.co.ke/oauth/v1/generate';
-const MPESA_PAYMENT_URL = 'https://sandbox.safaricom.co.ke/mpesa/b2b/v1/paymentrequest';
+// M-Pesa sandbox URLs
+const MPESA_AUTH_URL = 'https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials';
+const MPESA_PROCESS_REQUEST_URL = 'https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest';
 
-// Get credentials from environment variables
-const BASIC_AUTH = import.meta.env.VITE_MPESA_BASIC_AUTH;
+// Environment variables with fallbacks from your working test.js
+const MPESA_CALLBACK_URL = import.meta.env.VITE_MPESA_CALLBACK_URL || 'https://your-domain.com/api/mpesa/callback';
+const MPESA_PASSKEY = import.meta.env.VITE_MPESA_PASSKEY || 'bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919';
+const MPESA_SHORTCODE = import.meta.env.VITE_MPESA_SHORTCODE || '174379';
 
-interface MpesaAuthResponse {
-  access_token: string;
-  expires_in: string;
-}
+// Hardcoded Basic Auth from your working example
+const BASIC_AUTH = "Basic WGZQdkVSZGtnalZyZnJQYUVHbjVLbVBneG9JVzZHMjZCV2UxNDc1ZTFUZXdHdlBkOkVxc1pXNTM4cTNhWFByMHVOVkdtT2Zqb3BmM05hUGplcG52VUtKZ251RWVHenJaR3BnTUNrb0ZHTEFCQUdZRlc=";
 
-interface MpesaPaymentResponse {
-  OriginatorConversationID: string;
-  ConversationID: string;
-  ResponseCode: string;
-  ResponseDescription: string;
-}
+// Constants
+const TRANSACTION_TYPE = "CustomerBuyGoodsOnline";
+const ACCOUNT_REFERENCE = "ParkingLot";
 
-export const getMpesaToken = async (): Promise<string> => {
+const getBearerToken = (token: string) => `Bearer ${token}`;
+
+const getTimestamp = () => {
+  return new Date().toISOString().replace(/[-:T.Z]/g, '').slice(0, 14); // Exact match to test.js
+};
+
+const generatePassword = (timestamp: string) => {
+  return Buffer.from(`${MPESA_SHORTCODE}${MPESA_PASSKEY}${timestamp}`).toString('base64');
+};
+
+export const getAccessToken = async (): Promise<string> => {
+  const headers = new Headers();
+  headers.append("Authorization", BASIC_AUTH);
+
   try {
-    const response = await axios.get<MpesaAuthResponse>(
-      `${MPESA_AUTH_URL}?grant_type=client_credentials`,
-      {
-        headers: {
-          Authorization: `Basic ${BASIC_AUTH}`,
-        },
-      }
-    );
-    return response.data.access_token;
+    console.log('Attempting to fetch access token from:', MPESA_AUTH_URL);
+    const response = await fetch(MPESA_AUTH_URL, {
+      method: 'GET',
+      headers,
+    });
+
+    const responseText = await response.text();
+    console.log('Access token response:', responseText);
+
+    if (!response.ok) {
+      throw new Error(`HTTP error ${response.status}: ${responseText}`);
+    }
+
+    const data: { access_token: string; expires_in: string } = JSON.parse(responseText);
+    if (!data.access_token) {
+      throw new Error('No access token received in response');
+    }
+
+    console.log('✅ Access token retrieved successfully:', data.access_token);
+    return data.access_token;
   } catch (error) {
-    console.error('Error getting M-Pesa token:', error);
+    console.error('Failed to get M-Pesa authorization token:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     throw new Error('Failed to get M-Pesa authorization token');
   }
 };
 
-export const initiatePayment = async (
-  amount: number,
-  phoneNumber: string,
-  spaceNumber: string,
-  duration: number = 1 // Default to 1 hour if not specified
-): Promise<MpesaPaymentResponse> => {
+export const initiatePayment = async (phoneNumber: string, amount: number): Promise<{
+  MerchantRequestID: string;
+  CheckoutRequestID: string;
+  ResponseCode: string;
+  ResponseDescription: string;
+  CustomerMessage: string;
+}> => {
   try {
-    const token = await getMpesaToken();
-    
+    const accessToken = await getAccessToken();
+    const timestamp = getTimestamp();
+    const password = generatePassword(timestamp);
+
     const payload = {
-      Initiator: "API_Username", // Replace with your actual API username
-      SecurityCredential: "YOUR_SECURITY_CREDENTIAL", // Replace with your actual security credential
-      CommandID: "BusinessBuyGoods",
-      SenderIdentifierType: "4",
-      RecieverIdentifierType: "4",
+      BusinessShortCode: MPESA_SHORTCODE,
+      Password: password,
+      Timestamp: timestamp,
+      TransactionType: TRANSACTION_TYPE,
       Amount: amount.toString(),
-      PartyA: "174379", // Replace with your actual shortcode
-      PartyB: "174379", // Replace with merchant's till number
-      AccountReference: spaceNumber,
-      Requester: phoneNumber,
-      Remarks: `Payment for parking space ${spaceNumber} for ${duration} ${duration === 1 ? 'hour' : 'hours'}`,
-      QueueTimeOutURL: "https://your-domain.com/mpesa/queue", // Replace with your actual callback URLs
-      ResultURL: "https://your-domain.com/mpesa/result"
+      PartyA: phoneNumber,
+      PartyB: MPESA_SHORTCODE,
+      PhoneNumber: phoneNumber,
+      CallBackURL: MPESA_CALLBACK_URL,
+      AccountReference: ACCOUNT_REFERENCE,
+      TransactionDesc: 'Parking Payment'
     };
 
-    const response = await axios.post<MpesaPaymentResponse>(
-      MPESA_PAYMENT_URL,
-      payload,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
+    const headers = new Headers();
+    headers.append("Authorization", getBearerToken(accessToken));
+    headers.append("Content-Type", "application/json");
 
-    return response.data;
+    console.log('Initiating payment with payload:', payload);
+    const response = await fetch(MPESA_PROCESS_REQUEST_URL, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+    });
+
+    const responseText = await response.text();
+    console.log('Payment response:', responseText);
+
+    if (!response.ok) {
+      throw new Error(`Payment failed with status ${response.status}: ${responseText}`);
+    }
+
+    const data = JSON.parse(responseText);
+    if (data.ResponseCode !== '0') {
+      throw new Error(`Payment failed: ${data.ResponseDescription}`);
+    }
+
+    return data;
   } catch (error) {
-    console.error('Error initiating M-Pesa payment:', error);
-    throw new Error('Failed to initiate M-Pesa payment');
+    console.error('Error initiating payment:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+    throw new Error(`Failed to initiate payment: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
-}; 
+};

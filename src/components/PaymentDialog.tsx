@@ -15,7 +15,6 @@ import {
   MenuItem,
 } from '@mui/material';
 import { ParkingSpace } from '../types';
-import { initiatePayment } from '../services/mpesa';
 
 interface PaymentDialogProps {
   open: boolean;
@@ -59,18 +58,38 @@ export default function PaymentDialog({
 
     try {
       const formattedPhone = formatPhoneNumber(phoneNumber);
-      const response = await initiatePayment(formattedPhone, totalAmount);
+      console.log('Initiating payment with:', { phoneNumber: formattedPhone, amount: totalAmount });
 
-      console.log('Payment Response:', response); // Added for debugging
-      if (response.ResponseCode === "0") {
+      const response = await fetch('http://localhost:5000/initiate_payment', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          phoneNumber: formattedPhone,
+          amount: totalAmount,
+        }),
+      });
+
+      const data = await response.text(); // Get raw text first for logging
+      console.log('Raw Payment Response from Python:', data);
+      const jsonData = JSON.parse(data); // Then parse to JSON
+
+      if (!response.ok) {
+        throw new Error(jsonData.error || 'Payment initiation failed');
+      }
+
+      if (jsonData.ResponseCode === "0") {
+        console.log('Payment successful, closing dialog...');
         onPaymentComplete();
         onClose();
       } else {
-        setError(response.ResponseDescription || 'Payment initiation failed. Please try again.');
+        console.error('Payment failed with response:', jsonData);
+        setError(jsonData.ResponseDescription || 'Payment initiation failed. Please try again.');
       }
     } catch (error: any) {
       console.error('Payment processing error:', error);
-      setError(error.message || 'Failed to process payment. Please try again.');
+      setError(error.message || 'Failed to initiate payment. Please check your network or try again.');
     } finally {
       setLoading(false);
     }
