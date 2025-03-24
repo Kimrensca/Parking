@@ -87,9 +87,13 @@ export default function PaymentDialog({
         console.error('Payment failed with response:', jsonData);
         setError(jsonData.ResponseDescription || 'Payment initiation failed. Please try again.');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Payment processing error:', error);
-      setError(error.message || 'Failed to initiate payment. Please check your network or try again.');
+      setError(
+        error instanceof Error 
+          ? error.message 
+          : 'Failed to initiate payment. Please check your network or try again.'
+      );
     } finally {
       setLoading(false);
     }

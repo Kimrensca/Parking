@@ -1,5 +1,9 @@
-import Map from './components/Map'
-import { ThemeProvider, createTheme, CssBaseline } from '@mui/material'
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import Login from './pages/Login';
+import Dashboard from './pages/Dashboard';
+import { createClient } from '@supabase/supabase-js';
+import Map from './components/Map';
+import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
 
 const theme = createTheme({
   palette: {
@@ -26,13 +30,29 @@ const theme = createTheme({
   },
 });
 
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_ANON_KEY
+);
+
 function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Map />
+      <Router>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/dashboard" element={
+            <>
+              <Dashboard />
+              <Map />
+            </>
+          } />
+          <Route path="/" element={<Navigate to="/login" replace />} />
+        </Routes>
+      </Router>
     </ThemeProvider>
-  )
+  );
 }
 
-export default App
+export default App;
