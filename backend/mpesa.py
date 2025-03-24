@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 MPESA_AUTH_URL = "https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials"
 MPESA_PROCESS_REQUEST_URL = "https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest"
 BASIC_AUTH = "Basic WGZQdkVSZGtnalZyZnJQYUVHbjVLbVBneG9JVzZHMjZCV2UxNDc1ZTFUZXdHdlBkOkVxc1pXNTM4cTNhWFByMHVOVkdtT2Zqb3BmM05hUGplcG52VUtKZ251RWVHenJaR3BnTUNrb0ZHTEFCQUdZRlc="
-SHORTCODE = "8352624"
+SHORTCODE = "174379"
 PASSKEY = "bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919"
 CALLBACK_URL = "https://your-domain.com/api/mpesa/callback"  # Replace with your actual callback URL
 
