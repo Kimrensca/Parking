@@ -4,6 +4,7 @@ import Dashboard from './pages/Dashboard';
 import { createClient } from '@supabase/supabase-js';
 import Map from './components/Map';
 import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
+import Admin from './pages/Admin';
 
 const theme = createTheme({
   palette: {
@@ -48,6 +49,7 @@ function App() {
               <Map />
             </>
           } />
+          <Route path="/admin" element={<Admin />} />
           <Route path="/" element={<Navigate to="/login" replace />} />
         </Routes>
       </Router>
