@@ -20,7 +20,7 @@ interface PaymentDialogProps {
   open: boolean;
   onClose: () => void;
   parkingSpace: ParkingSpace;
-  onPaymentComplete: () => void;
+  onPaymentComplete: (space: ParkingSpace, response: any) => void;
 }
 
 export default function PaymentDialog({
@@ -47,56 +47,22 @@ export default function PaymentDialog({
     return cleaned;
   };
 
-  const handlePayment = async () => {
-    if (!phoneNumber.match(/^(0?7\d{8})$/)) {
-      setError('Please enter a valid phone number in the format 07XXXXXXXX');
-      return;
-    }
-
+  const handlePayment = () => {
     setLoading(true);
     setError(null);
 
-    try {
-      const formattedPhone = formatPhoneNumber(phoneNumber);
-      console.log('Initiating payment with:', { phoneNumber: formattedPhone, amount: totalAmount });
-
-      const response = await fetch('http://localhost:5000/initiate_payment', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          phoneNumber: formattedPhone,
-          amount: totalAmount,
-        }),
-      });
-
-      const data = await response.text(); // Get raw text first for logging
-      console.log('Raw Payment Response from Python:', data);
-      const jsonData = JSON.parse(data); // Then parse to JSON
-
-      if (!response.ok) {
-        throw new Error(jsonData.error || 'Payment initiation failed');
-      }
-
-      if (jsonData.ResponseCode === "0") {
-        console.log('Payment successful, closing dialog...');
-        onPaymentComplete();
-        onClose();
-      } else {
-        console.error('Payment failed with response:', jsonData);
-        setError(jsonData.ResponseDescription || 'Payment initiation failed. Please try again.');
-      }
-    } catch (error: unknown) {
-      console.error('Payment processing error:', error);
-      setError(
-        error instanceof Error 
-          ? error.message 
-          : 'Failed to initiate payment. Please check your network or try again.'
-      );
-    } finally {
+    // Simulate API call to backend
+    setTimeout(() => {
       setLoading(false);
-    }
+      
+      // In a real app, you'd make an actual API call here
+      // const response = await fetch('/api/payments', { method: 'POST', body: JSON.stringify(paymentDetails) });
+      // const data = await response.json();
+      
+      // Simulate successful response
+      const mockResponse = { status: 200, message: 'Payment successful' };
+      onPaymentComplete(parkingSpace, mockResponse);
+    }, 2000); // Simulate 2 second processing time
   };
 
   const handlePhoneNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {

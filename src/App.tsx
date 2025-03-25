@@ -43,12 +43,7 @@ function App() {
       <Router>
         <Routes>
           <Route path="/login" element={<Login />} />
-          <Route path="/dashboard" element={
-            <>
-              <Dashboard />
-              <Map />
-            </>
-          } />
+          <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/" element={<Navigate to="/login" replace />} />
         </Routes>
